@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectral Ticker Embed</title>
+    <style>
+        /* START ticker.css content */
+        body { /* Important: Style the body of THIS embed, not your main site */
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent scrollbars if ticker content is too wide initially */
+        }
+
+        .ticker-container {
+            width: 100%;
+            /* Remove height if you want it to auto-adjust, or set a fixed height */
+            height: 50px; /* Example fixed height for the ticker strip */
+            overflow: hidden;
+            background-color: #1a0000; /* Dark, unsettling background */
+            border: 1px solid #4d0000; /* Dark red border */
+            font-family: 'Courier New', Courier, monospace;
+            color: #ff3333;
+            padding: 10px 0;
+            box-sizing: border-box;
+            white-space: nowrap;
+            position: relative;
+            text-shadow: 0 0 5px #ff0000;
+        }
+
+        .ticker-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: none;
+        }
+
+        @keyframes scrollLeft {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+        /* END ticker.css content */
+    </style>
+</head>
+<body>
+
+    <div class="ticker-container">
+        <div class="ticker-content" id="spectralTicker">
+            Loading spectral transmissions...
+        </div>
+    </div>
+
+    <script>
+        // START ticker.js content
+        document.addEventListener('DOMContentLoaded', () => {
+            const tickerElement = document.getElementById('spectralTicker');
+            let messages = [];
+            let currentMessageIndex = 0;
+            let animationDuration = 15;
+            const pauseDuration = 3000; // 3 seconds pause
+            const pixelsPerSecond = 80;
+
+            // --- Configuration for Message Source ---
+            // This is the CRITICAL part for Google Sites
+            // You CANNOT rely on relative paths like 'messages.json' from within the iframe
+            // You MUST use an ABSOLUTE URL for your message source.
+            const messageSourceUrl = 'https://yourdomain.com/path/to/your/messages.json'; // <--- IMPORTANT: Change this!
+            const messageSourceType = 'json'; // Or 'text'
+
+            // Example for a GitHub Gist raw URL:
+            // const messageSourceUrl = 'https://gist.githubusercontent.com/YOUR_USERNAME/YOUR_GIST_ID/raw/YOUR_FILENAME.json';
+            // Example for a Dropbox direct link:
+            // const messageSourceUrl = 'https://dl.dropboxusercontent.com/s/YOUR_SHARED_LINK_ID/messages.json';
+
+
+            async function fetchMessages() {
+                try {
+                    const response = await fetch(messageSourceUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    if (messageSourceType === 'json') {
+                        const data = await response.json();
+                        messages = Array.isArray(data) ? data : data.messages || [];
+                    } else if (messageSourceType === 'text') {
+                        const text = await response.text();
+                        messages = text.split('\n').filter(line => line.trim() !== '');
+                    }
+
+                    if (messages.length > 0) {
+                        startTicker();
+                    } else {
+                        tickerElement.textContent = "No spectral transmissions found. Awaiting signals...";
+                    }
+
+                } catch (error) {
+                    console.error("Failed to fetch spectral messages:", error);
+                    tickerElement.textContent = "Error: Failed to receive spectral transmissions. Signal lost.";
+                }
+            }
+
+            function animateMessage() {
+                if (messages.length === 0) return;
+
+                const message = messages[currentMessageIndex];
+                tickerElement.textContent = message;
+
+                tickerElement.style.transform = 'translateX(100%)';
+                tickerElement.style.animation = 'none';
+
+                // Use a small timeout to ensure the browser registers the style change before animating
+                // This can help with initial positioning glitches
+                setTimeout(() => {
+                    const containerWidth = tickerElement.parentElement.offsetWidth;
+                    const contentWidth = tickerElement.scrollWidth;
+                    const totalDistance = containerWidth + contentWidth;
+
+                    animationDuration = totalDistance / pixelsPerSecond;
+
+                    tickerElement.style.animation = `scrollLeft ${animationDuration}s linear forwards`;
+
+                    tickerElement.onanimationend = () => {
+                        setTimeout(() => {
+                            currentMessageIndex = (currentMessageIndex + 1) % messages.length;
+                            animateMessage();
+                        }, pauseDuration);
+                    };
+                }, 50); // Small delay to ensure render tree updates
+            }
+
+            function startTicker() {
+                animateMessage();
+            }
+
+            fetchMessages();
+        });
+        // END ticker.js content
+    </script>
+
+</body>
+</html>
